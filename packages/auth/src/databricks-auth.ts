@@ -59,6 +59,22 @@ let cacheExpiry = 0;
 // Authentication Method Detection
 // ============================================================================
 
+const PLACEHOLDER_ENV_VALUES = new Set([
+  'your-profile-name',
+  'your-serving-endpoint',
+  'your-databricks-username',
+  'your-postgres-host',
+  'your-experiment-id',
+]);
+
+function isConfiguredEnvValue(value: string | undefined): boolean {
+  if (!value) return false;
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (PLACEHOLDER_ENV_VALUES.has(trimmed)) return false;
+  return true;
+}
+
 /**
  * Determine which authentication method to use
  */
@@ -85,7 +101,7 @@ export function shouldUseOAuth(): boolean {
 
   try {
     getHostDomain(); // This will throw if DATABRICKS_HOST is not set
-    return !!(clientId && clientSecret);
+    return isConfiguredEnvValue(clientId) && isConfiguredEnvValue(clientSecret);
   } catch {
     return false;
   }
@@ -99,7 +115,9 @@ export function shouldUseCLIAuth(): boolean {
   const databricksHost = process.env.DATABRICKS_HOST;
 
   // CLI auth is available if we have a profile or a host
-  return !!(configProfile || databricksHost);
+  return (
+    isConfiguredEnvValue(configProfile) || isConfiguredEnvValue(databricksHost)
+  );
 }
 
 /**
@@ -519,6 +537,8 @@ export async function getAuthSession({
   getRequestHeader: (name: string) => string | null;
 }): Promise<AuthSession | null> {
   try {
+    const method = getAuthMethod();
+
     // In test environments, short-circuit auth using forwarded headers or defaults
     if (isTestEnvironment) {
       const fwdUser = getRequestHeader('X-Forwarded-User') ?? 'test-user-id';
@@ -542,6 +562,26 @@ export async function getAuthSession({
           email: user.email || fwdEmail,
           name: fwdName,
           preferredUsername: fwdName,
+          type: 'regular',
+        },
+      };
+    }
+
+    // When no Databricks auth is configured, fall back to a local session so
+    // the dev server can boot without CLI login or workspace credentials.
+    if (method === 'none') {
+      console.log(
+        '[getAuthSession] No Databricks auth configured - using local session',
+      );
+
+      const user = await getUserFromHeaders({ getRequestHeader });
+
+      return {
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.id,
+          preferredUsername: user.id,
           type: 'regular',
         },
       };
