@@ -22,7 +22,6 @@ import { PreviewAttachment } from './preview-attachment';
 import equal from 'fast-deep-equal';
 import { cn, sanitizeText } from '@/lib/utils';
 import { MessageEditor } from './message-editor';
-import { MessageReasoning } from './message-reasoning';
 import { Shimmer } from './ui/shimmer';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage, Feedback } from '@chat-template/core';
@@ -38,11 +37,46 @@ import { MessageOAuthError } from './message-oauth-error';
 import { isCredentialErrorMessage } from '@/lib/oauth-error-utils';
 import {
   groupConsecutiveToolSegments,
-  type ChatPart,
   type ToolPart,
 } from '@/lib/tool-group-segments';
 import { Streamdown } from 'streamdown';
 import { useApproval } from '@/hooks/use-approval';
+import type {
+  ReasoningPart,
+  ToolCallPart,
+  ToolResultPart,
+} from '@/types/chat-ui-parts';
+import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
+
+const stringifyPartValue = (value: unknown) => {
+  if (typeof value === 'string') return value;
+  if (value == null) return '';
+  return JSON.stringify(value, null, 2);
+};
+
+const stringifyPartPreview = (value: unknown) => {
+  if (typeof value === 'string') return value;
+  if (value == null) return '';
+  return JSON.stringify(value);
+};
+
+const truncate = (value: string, maxLength: number) =>
+  value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
+
+type VisibleReasoningPart = ReasoningPart & {
+  text?: string;
+};
+
+type VisibleToolCallPart = ToolCallPart & {
+  toolName?: string;
+  input?: unknown;
+};
+
+type VisibleToolResultPart = ToolResultPart & {
+  name?: string;
+  toolName?: string;
+  result?: unknown;
+};
 
 const PurePreviewMessage = ({
   message,
@@ -168,7 +202,7 @@ const PurePreviewMessage = ({
             </div>
           )}
 
-          {renderBlocks.map((block) => {
+          {renderBlocks.map((block, blockIndex) => {
             if (block.kind === 'tool-group') {
               return (
                 <MessageToolGroup
@@ -187,14 +221,96 @@ const PurePreviewMessage = ({
             const [part] = parts;
             const { type } = part;
             const key = `message-${message.id}-part-${index}`;
+            const showPartSeparator = blockIndex < renderBlocks.length - 1;
 
-            if (type === 'reasoning' && part.text?.trim().length > 0) {
+            if (type === 'reasoning') {
+              const reasoningPart = part as VisibleReasoningPart;
+              const reasoningText =
+                reasoningPart.text ?? reasoningPart.content ?? '';
+              if (reasoningText.trim().length === 0) {
+                return null;
+              }
+
               return (
-                <MessageReasoning
-                  key={key}
-                  isLoading={isLoading}
-                  reasoning={part.text}
-                />
+                <React.Fragment key={key}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="reasoning-chip tooltip-inline">
+                        Reasoning{' '}
+                        {reasoningPart.step !== undefined
+                          ? `step ${reasoningPart.step}: `
+                          : ''}
+                        {truncate(reasoningText, 80)}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent sideOffset={4}>
+                      {reasoningText}
+                    </TooltipContent>
+                  </Tooltip>
+                  {showPartSeparator && (
+                    <span className="part-separator"> / </span>
+                  )}
+                </React.Fragment>
+              );
+            }
+
+            if (type === 'tool-call') {
+              const toolCallPart = part as VisibleToolCallPart;
+              const toolName =
+                toolCallPart.name ?? toolCallPart.toolName ?? 'tool';
+              const args =
+                toolCallPart.arguments ?? toolCallPart.input ?? undefined;
+              const argsPreview = stringifyPartPreview(args);
+
+              return (
+                <React.Fragment key={key}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="tool-call-chip tooltip-inline">
+                        Tool <strong>{toolName}</strong>{' '}
+                        {truncate(argsPreview, 60)}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent sideOffset={4}>
+                      <pre className="max-w-96 whitespace-pre-wrap">
+                        {stringifyPartValue(args)}
+                      </pre>
+                    </TooltipContent>
+                  </Tooltip>
+                  {showPartSeparator && (
+                    <span className="part-separator"> / </span>
+                  )}
+                </React.Fragment>
+              );
+            }
+
+            if (type === 'tool-result') {
+              const toolResultPart = part as VisibleToolResultPart;
+              const toolName =
+                toolResultPart.name ?? toolResultPart.toolName ?? 'tool';
+              const output =
+                toolResultPart.output ?? toolResultPart.result ?? undefined;
+              const outputPreview = stringifyPartPreview(output);
+
+              return (
+                <React.Fragment key={key}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="tool-result-chip tooltip-inline">
+                        Result <strong>{toolName}</strong>{' '}
+                        {truncate(outputPreview, 80)}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent sideOffset={4}>
+                      <pre className="max-w-96 whitespace-pre-wrap">
+                        {stringifyPartValue(output)}
+                      </pre>
+                    </TooltipContent>
+                  </Tooltip>
+                  {showPartSeparator && (
+                    <span className="part-separator"> / </span>
+                  )}
+                </React.Fragment>
               );
             }
 

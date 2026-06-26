@@ -584,3 +584,44 @@
     background-position: -100% 50%;
   }
 }
+
+.tool-call-chip,
+.tool-result-chip,
+.reasoning-chip {
+  display: inline-block;
+  padding: 2px 6px;
+  margin: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  vertical-align: middle;
+}
+
+.tool-call-chip {
+  background: var(--color-indigo-100);
+  border: 1px solid var(--color-indigo-500);
+}
+
+.tool-result-chip {
+  background: var(--background-success);
+  border: 1px solid var(--border-success);
+}
+
+.reasoning-chip {
+  background: var(--background-warning);
+  border: 1px solid var(--border-warning);
+}
+
+.part-separator {
+  margin: 0 4px;
+  color: var(--muted-foreground);
+}
+
+.unknown-part-chip {
+  background: var(--background-danger);
+  color: var(--destructive);
+  font-family: var(--font-standard-mono);
+}
+
+.tooltip-inline {
+  cursor: help;
+}

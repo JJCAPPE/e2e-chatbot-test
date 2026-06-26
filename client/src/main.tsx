@@ -1,4 +1,4 @@
-import "./types/chat-ui-parts";
+import './types/chat-ui-parts';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
