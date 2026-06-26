@@ -1,14 +1,13 @@
 bundle:
-  name: databricks-chatbot
+  name: bmed-move-interface
 
 variables:
   serving_endpoint_name:
-    description: "Name of the model serving endpoint to be used by the app"
-    # TODO: uncomment the line below and specify a default value to avoid needing to specify it on each deployment
-    # default: "your-serving-endpoint-name-goes-here"
+    description: "Nome del Model Serving endpoint dell'agente MOVE"
+    default: "bmed-move-agent"
   database_instance_name:
     description: "Base name of the Lakebase database instance"
-    default: "chatbot-lakebase"
+    default: "bmed-move-chat-history"
   resource_name_suffix:
     description: "Suffix for resource names (app/lakebase instance names etc). Helpful for avoiding name collisions if multiple users deploy this app to the same workspace"
 
@@ -20,18 +19,13 @@ resources:
     #   capacity: CU_1
 
   apps:
-    databricks_chatbot:
-      # NOTE: customize the app name here, if desired
-      name: db-chatbot-${var.resource_name_suffix}
-      description: "Agentic Chat application for Foundation Models, Agent Bricks, and custom code agents"
+    bmed_move_interface:
+      name: bmed-move-interface-${var.resource_name_suffix}
+      description: "Interfaccia chat MOVE per interrogare l'agente BMED su Databricks"
       source_code_path: .
       resources:
         - name: serving-endpoint
-          description: "Databricks serving endpoint name for the AI agent"
-          # NOTE: If chatting with an Agent Bricks Multi-Agent Supervisor (https://docs.databricks.com/aws/en/generative-ai/agent-bricks/multi-agent-supervisor),
-          # you need to additionally grant the app service principal the `CAN_QUERY` permission on the
-          # underlying agent(s) that the MAS orchestrates. You can do this by adding those
-          # agent serving endpoints as additional resources here.
+          description: "Model Serving endpoint Databricks dell'agente MOVE"
           serving_endpoint:
             name: ${var.serving_endpoint_name}
             permission: CAN_QUERY
